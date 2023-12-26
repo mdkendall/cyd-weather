@@ -38,6 +38,6 @@ void loop() {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
         Serial.printf("%d %d %d\n", p.x, p.y, p.z);
-        tft.fillCircle(map(p.x, 0, 3600, 0, 320), map(p.y, 0, 4000, 0, 240), 3, TFT_RED);
+        tft.fillCircle(map(p.x, 180, 3660, 0, 320), map(p.y, 240, 3840, 0, 240), 3, TFT_RED);
     }
 }
