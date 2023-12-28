@@ -15,41 +15,45 @@
 #include "NotoSansBold36.h"
 
 /* Record of data to be displayed */
-typedef struct dataRecord_s {
-    float current;
-    float minimum;
-    float maximum;
-} dataRecord_t;
-
-typedef struct dataSet_s {
-    dataRecord_t temperature;
-    dataRecord_t humidity;
-    dataRecord_t pressure;
-} dataSet_t;
-
-typedef struct data_s {
-    dataSet_t indoor;
-    dataSet_t outdoor;
-    bool dirty;
-} data_t;
-
-data_t data = {
-    {{0,999,-999},{50,100,0},{1000,1100,900}},
-    {{0,999,-999},{50,100,0},{1000,1100,900}},
-    false
+class DataRecord {
+    public:
+        DataRecord() { }
+        void setValue(float value) {
+            current = value;
+            if (value < minimum) minimum = value;
+            if (value > maximum) maximum = value;
+        };
+        float current = 0.0;
+        float minimum = 9999.0;
+        float maximum = -9999.0;
 };
+
+class DataSet {
+    public:
+        DataSet() { }
+        DataRecord temperature;
+        DataRecord humidity;
+        DataRecord pressure;
+};
+
+class Data {
+    public:
+        Data() { }
+        DataSet indoor;
+        DataSet outdoor;
+        bool dirty = false;
+} data;
 
 /* Function prototypes */
 void touchInit();
 void touchTask(void *param);
 void dispInit();
 void dispTask(void *param);
-void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, uint8_t dp);
+void dispValueWidget(TFT_eSprite *spr, const char *label, DataRecord *data, uint8_t dp);
 void wifiInit();
 void mqttInit();
 void mqttTask(void *param);
 void mqttHandleMessage(char* topic, uint8_t* payload, unsigned int len);
-void updateValue(dataRecord_t* data, float value);
 
 /* Main functionality */
 
@@ -63,15 +67,6 @@ void setup() {
 }
 
 void loop() {
-}
-
-/* ----- Data Management ----- */
-
-void updateValue(dataRecord_t* data, float value) {
-
-    data->current = value;
-    if (value < data->minimum) data->minimum = value;
-    if (value > data->maximum) data->maximum = value;
 }
 
 /* ----- WiFi ----- */
@@ -133,12 +128,12 @@ void mqttHandleMessage(char* topic, uint8_t* payload, unsigned int len) {
     Serial.printf("[MQTT] received %s: %s\n", topic, payload);
     float value = atof((char*)payload);
 
-    if      (!strcmp(topic, "enviro/indoor/temperature")) { updateValue(&data.indoor.temperature, value); }
-    else if (!strcmp(topic, "enviro/indoor/humidity")) { updateValue(&data.indoor.humidity, value); }
-    else if (!strcmp(topic, "enviro/indoor/pressure")) { updateValue(&data.indoor.pressure, value); }
-    else if (!strcmp(topic, "enviro/outdoor/temperature")) { updateValue(&data.outdoor.temperature, value); }
-    else if (!strcmp(topic, "enviro/outdoor/humidity")) { updateValue(&data.outdoor.humidity, value); }
-    else if (!strcmp(topic, "enviro/outdoor/pressure")) { updateValue(&data.outdoor.pressure, value); }
+    if      (!strcmp(topic, "enviro/indoor/temperature")) { data.indoor.temperature.setValue(value); }
+    else if (!strcmp(topic, "enviro/indoor/humidity")) { data.indoor.humidity.setValue(value); }
+    else if (!strcmp(topic, "enviro/indoor/pressure")) { data.indoor.pressure.setValue(value); }
+    else if (!strcmp(topic, "enviro/outdoor/temperature")) { data.outdoor.temperature.setValue(value); }
+    else if (!strcmp(topic, "enviro/outdoor/humidity")) { data.outdoor.humidity.setValue(value); }
+    else if (!strcmp(topic, "enviro/outdoor/pressure")) { data.outdoor.pressure.setValue(value); }
     data.dirty = true;
 }
 
@@ -217,7 +212,7 @@ void dispTask(void *param) {
     }
 }
 
-void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, uint8_t dp) {
+void dispValueWidget(TFT_eSprite *spr, const char *label, DataRecord *data, uint8_t dp) {
 
     spr->fillSprite(TFT_BLACK);
     spr->setTextDatum(MC_DATUM);
