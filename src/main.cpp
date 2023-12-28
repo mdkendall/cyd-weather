@@ -6,6 +6,9 @@
 #include <WiFiClient.h>             // Wifi client library
 
 #include "secrets.h"                // Credentials
+
+/* Fonts from https://fonts.google.com/noto licensed under the Open Font License,
+ * converted with TFT-eSPI/tools/Create_Smooth_Font Processing script */
 #include "NotoSansBold12.h"
 #include "NotoSansBold18.h"
 #include "NotoSansBold24.h"
@@ -21,6 +24,7 @@
 SPIClass vSpi = SPIClass(VSPI);
 XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
 
+/* Record of data to be displayed */
 typedef struct dataRecord_s {
     float current;
     float minimum;
@@ -31,20 +35,17 @@ typedef struct dataSet_s {
     dataRecord_t temperature;
     dataRecord_t humidity;
     dataRecord_t pressure;
-    dataRecord_t windSpeed;
 } dataSet_t;
 
 typedef struct data_s {
     dataSet_t indoor;
     dataSet_t outdoor;
-    dataSet_t reported;
     bool dirty;
 } data_t;
 
 data_t data = {
-    {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
-    {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
-    {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
+    {{0,999,-999},{50,100,0},{1000,1100,900}},
+    {{0,999,-999},{50,100,0},{1000,1100,900}},
     false
 };
 
@@ -79,8 +80,14 @@ void loop() {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
         Serial.printf("%d %d %d\n", p.x, p.y, p.z);
-//        tft.fillCircle(map(p.x, 180, 3660, 0, 320), map(p.y, 240, 3840, 0, 240), 3, TFT_RED);
     }
+}
+
+void updateValue(dataRecord_t* data, float value) {
+
+    data->current = value;
+    if (value < data->minimum) data->minimum = value;
+    if (value > data->maximum) data->maximum = value;
 }
 
 /* ----- WiFi ----- */
@@ -142,26 +149,13 @@ void mqttHandleMessage(char* topic, uint8_t* payload, unsigned int len) {
     Serial.printf("[MQTT] received %s: %s\n", topic, payload);
     float value = atof((char*)payload);
 
-    if (!strcmp(topic, "enviro/indoor/temperature")) { updateValue(&data.indoor.temperature, value); }
+    if      (!strcmp(topic, "enviro/indoor/temperature")) { updateValue(&data.indoor.temperature, value); }
     else if (!strcmp(topic, "enviro/indoor/humidity")) { updateValue(&data.indoor.humidity, value); }
     else if (!strcmp(topic, "enviro/indoor/pressure")) { updateValue(&data.indoor.pressure, value); }
-    else if (!strcmp(topic, "enviro/indoor/windSpeed")) { updateValue(&data.indoor.windSpeed, value); }
     else if (!strcmp(topic, "enviro/outdoor/temperature")) { updateValue(&data.outdoor.temperature, value); }
     else if (!strcmp(topic, "enviro/outdoor/humidity")) { updateValue(&data.outdoor.humidity, value); }
     else if (!strcmp(topic, "enviro/outdoor/pressure")) { updateValue(&data.outdoor.pressure, value); }
-    else if (!strcmp(topic, "enviro/outdoor/windSpeed")) { updateValue(&data.outdoor.windSpeed, value); }
-    else if (!strcmp(topic, "enviro/reported/temperature")) { updateValue(&data.reported.temperature, value); }
-    else if (!strcmp(topic, "enviro/reported/humidity")) { updateValue(&data.reported.humidity, value); }
-    else if (!strcmp(topic, "enviro/reported/pressure")) { updateValue(&data.reported.pressure, value); }
-    else if (!strcmp(topic, "enviro/reported/windSpeed")) { updateValue(&data.reported.windSpeed, value); }
     data.dirty = true;
-}
-
-void updateValue(dataRecord_t* data, float value) {
-
-    data->current = value;
-    if (value < data->minimum) data->minimum = value;
-    if (value > data->maximum) data->maximum = value;
 }
 
 /* ----- Display Task ---- */
