@@ -186,8 +186,8 @@ void dispTask(void *param) {
     tft.setTextColor(0x73EF, TFT_BLACK);
     tft.setTextDatum(MC_DATUM);
     tft.loadFont(NotoSansBold18);
-    tft.drawString("INSIDE", 80, 15);
-    tft.drawString("OUTSIDE", 240, 15);
+    tft.drawString("Inside", 80, 15);
+    tft.drawString("Outside", 240, 15);
     tft.unloadFont();
 
     /* Create the sprite for rendering the widgets */
@@ -222,7 +222,7 @@ void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, ui
     spr->drawString(label, 50, 10);
     spr->unloadFont();
 
-    spr->loadFont(NotoSansBold18);
+    spr->loadFont(NotoSansBold24);
     spr->setTextColor(TFT_MAROON, TFT_BLACK);
     spr->drawFloat(data->maximum, dp, 130, 15);
     spr->setTextColor(TFT_NAVY, TFT_BLACK);
