@@ -14,16 +14,6 @@
 #include "NotoSansBold24.h"
 #include "NotoSansBold36.h"
 
-/* GPIO pins connected to the XPT2046 touch controller */
-#define XPT2046_IRQ     36
-#define XPT2046_MOSI    32
-#define XPT2046_MISO    39
-#define XPT2046_CLK     25
-#define XPT2046_CS      33
-
-SPIClass vSpi = SPIClass(VSPI);
-XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
-
 /* Record of data to be displayed */
 typedef struct dataRecord_s {
     float current;
@@ -50,6 +40,8 @@ data_t data = {
 };
 
 /* Function prototypes */
+void touchInit();
+void touchTask(void *param);
 void dispInit();
 void dispTask(void *param);
 void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, uint8_t dp);
@@ -64,24 +56,16 @@ void updateValue(dataRecord_t* data, float value);
 void setup() {
 
     Serial.begin(115200);
-
-    /* Initialise the touch controller */
-    vSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
-    ts.begin(vSpi);
-    ts.setRotation(1);
-
+    touchInit();
     dispInit();
     wifiInit();
     mqttInit();
 }
 
 void loop() {
-
-    if (ts.touched()) {
-        TS_Point p = ts.getPoint();
-        Serial.printf("%d %d %d\n", p.x, p.y, p.z);
-    }
 }
+
+/* ----- Data Management ----- */
 
 void updateValue(dataRecord_t* data, float value) {
 
@@ -156,6 +140,38 @@ void mqttHandleMessage(char* topic, uint8_t* payload, unsigned int len) {
     else if (!strcmp(topic, "enviro/outdoor/humidity")) { updateValue(&data.outdoor.humidity, value); }
     else if (!strcmp(topic, "enviro/outdoor/pressure")) { updateValue(&data.outdoor.pressure, value); }
     data.dirty = true;
+}
+
+/* ----- Touch task ----- */
+
+#define XPT2046_IRQ     36
+#define XPT2046_MOSI    32
+#define XPT2046_MISO    39
+#define XPT2046_CLK     25
+#define XPT2046_CS      33
+
+void touchInit() {
+
+    TaskHandle_t taskHandle;
+    xTaskCreatePinnedToCore(touchTask, "Touch", 8192, nullptr, 2, &taskHandle, 1);
+}
+
+void touchTask(void *param) {
+
+    /* Initialise the touch controller */
+    SPIClass vSpi = SPIClass(VSPI);
+    XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
+    vSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
+    ts.begin(vSpi);
+    ts.setRotation(1);
+
+    while (true) {
+        if (ts.tirqTouched() && ts.touched()) {
+            TS_Point p = ts.getPoint();
+            Serial.printf("%d %d %d\n", p.x, p.y, p.z);
+        }
+        vTaskDelay(1);
+    }
 }
 
 /* ----- Display Task ---- */
