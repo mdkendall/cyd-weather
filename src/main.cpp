@@ -46,6 +46,7 @@ data_t data = {
 /* Function prototypes */
 void dispInit();
 void dispTask(void *param);
+void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, uint8_t dp);
 void wifiInit();
 void mqttInit();
 void mqttTask(void *param);
@@ -169,6 +170,7 @@ void dispInit() {
 void dispTask(void *param) {
 
     TFT_eSPI tft = TFT_eSPI();
+    TFT_eSprite spr = TFT_eSprite(&tft);
 
     /* Initialise the LCD controller */
     tft.init();
@@ -180,16 +182,40 @@ void dispTask(void *param) {
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(&FreeSansBold24pt7b);
 
+    spr.createSprite(160, 60);
+
     while (true) {
         if (data.dirty) {
-            tft.drawFloat(data.indoor.temperature.current, 1, 53, 40, 1);
-            tft.drawFloat(data.indoor.humidity.current, 0, 53, 120, 1);
-            tft.drawFloat(data.indoor.pressure.current, 0, 53, 200, 1);
-            tft.drawFloat(data.outdoor.temperature.current, 1, 160, 40, 1);
-            tft.drawFloat(data.outdoor.humidity.current, 0, 160, 120, 1);
-            tft.drawFloat(data.outdoor.pressure.current, 0, 160, 200, 1);
+            // tft.drawFloat(data.indoor.temperature.current, 1, 53, 40, 1);
+            // tft.drawFloat(data.indoor.humidity.current, 0, 53, 120, 1);
+            // tft.drawFloat(data.indoor.pressure.current, 0, 53, 200, 1);
+            // tft.drawFloat(data.outdoor.temperature.current, 1, 160, 40, 1);
+            // tft.drawFloat(data.outdoor.humidity.current, 0, 160, 120, 1);
+            // tft.drawFloat(data.outdoor.pressure.current, 0, 160, 200, 1);
+            dispValueWidget(&spr, "Temperature", &data.indoor.temperature, 1); spr.pushSprite(0, 30);
+            dispValueWidget(&spr, "Humidity", &data.indoor.humidity, 0); spr.pushSprite(0, 100);
+            dispValueWidget(&spr, "Pressure", &data.indoor.pressure, 0); spr.pushSprite(0, 170);
+            dispValueWidget(&spr, "Temperature", &data.outdoor.temperature, 1); spr.pushSprite(160, 30);
+            dispValueWidget(&spr, "Humidity", &data.outdoor.humidity, 0); spr.pushSprite(160, 100);
+            dispValueWidget(&spr, "Pressure", &data.outdoor.pressure, 0); spr.pushSprite(160, 170);
             data.dirty = false;
         }
         vTaskDelay(1000);
     }
+}
+
+void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, uint8_t dp) {
+
+    spr->fillSprite(TFT_BLACK);
+    spr->setTextDatum(MC_DATUM);
+    spr->setTextColor(TFT_GREEN, TFT_BLACK);
+    spr->setFreeFont(&FreeSans9pt7b);
+    spr->drawString(label, 50, 10);
+    spr->setFreeFont(&FreeSans24pt7b);
+    spr->drawFloat(data->current, dp, 50, 40, 1);
+    spr->setFreeFont(&FreeSans12pt7b);
+    spr->setTextColor(TFT_MAROON, TFT_BLACK);
+    spr->drawFloat(data->maximum, dp, 130, 15, 1);
+    spr->setTextColor(TFT_NAVY, TFT_BLACK);
+    spr->drawFloat(data->minimum, dp, 130, 45, 1);
 }
