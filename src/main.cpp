@@ -6,7 +6,9 @@
 #include <WiFiClient.h>             // Wifi client library
 
 #include "secrets.h"                // Credentials
-#include "NotoSansBold15.h"
+#include "NotoSansBold12.h"
+#include "NotoSansBold18.h"
+#include "NotoSansBold24.h"
 #include "NotoSansBold36.h"
 
 /* GPIO pins connected to the XPT2046 touch controller */
@@ -179,22 +181,20 @@ void dispTask(void *param) {
     tft.init();
     tft.setRotation(1);
 
-    /* Clear the screen */
+    /* Clear the screen and draw the fixed items */
     tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.setTextColor(0x73EF, TFT_BLACK);
     tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(&FreeSansBold24pt7b);
+    tft.loadFont(NotoSansBold18);
+    tft.drawString("INSIDE", 80, 15);
+    tft.drawString("OUTSIDE", 240, 15);
+    tft.unloadFont();
 
+    /* Create the sprite for rendering the widgets */
     spr.createSprite(160, 60);
 
     while (true) {
         if (data.dirty) {
-            // tft.drawFloat(data.indoor.temperature.current, 1, 53, 40, 1);
-            // tft.drawFloat(data.indoor.humidity.current, 0, 53, 120, 1);
-            // tft.drawFloat(data.indoor.pressure.current, 0, 53, 200, 1);
-            // tft.drawFloat(data.outdoor.temperature.current, 1, 160, 40, 1);
-            // tft.drawFloat(data.outdoor.humidity.current, 0, 160, 120, 1);
-            // tft.drawFloat(data.outdoor.pressure.current, 0, 160, 200, 1);
             dispValueWidget(&spr, "Temperature", &data.indoor.temperature, 1); spr.pushSprite(0, 30);
             dispValueWidget(&spr, "Humidity", &data.indoor.humidity, 0); spr.pushSprite(0, 100);
             dispValueWidget(&spr, "Pressure", &data.indoor.pressure, 0); spr.pushSprite(0, 170);
@@ -217,11 +217,14 @@ void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, ui
     spr->drawFloat(data->current, dp, 50, 40);
     spr->unloadFont();
 
-    spr->loadFont(NotoSansBold15);
+    spr->loadFont(NotoSansBold12);
     spr->setTextColor(0x03E0, TFT_BLACK);
     spr->drawString(label, 50, 10);
+    spr->unloadFont();
+
+    spr->loadFont(NotoSansBold18);
     spr->setTextColor(TFT_MAROON, TFT_BLACK);
-    spr->drawFloat(data->maximum, dp, 130, 25);
+    spr->drawFloat(data->maximum, dp, 130, 15);
     spr->setTextColor(TFT_NAVY, TFT_BLACK);
     spr->drawFloat(data->minimum, dp, 130, 45);
     spr->unloadFont();
