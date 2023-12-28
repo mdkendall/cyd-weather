@@ -16,8 +16,6 @@
 SPIClass vSpi = SPIClass(VSPI);
 XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
 
-TFT_eSPI tft = TFT_eSPI();
-
 typedef struct dataRecord_s {
     float current;
     float minimum;
@@ -35,16 +33,19 @@ typedef struct data_s {
     dataSet_t indoor;
     dataSet_t outdoor;
     dataSet_t reported;
+    bool dirty;
 } data_t;
 
 data_t data = {
     {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
     {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
-    {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}}
+    {{0,999,-999},{50,100,0},{1000,1100,900},{0,100,0}},
+    false
 };
 
 /* Function prototypes */
-
+void dispInit();
+void dispTask(void *param);
 void wifiInit();
 void mqttInit();
 void mqttTask(void *param);
@@ -62,21 +63,9 @@ void setup() {
     ts.begin(vSpi);
     ts.setRotation(1);
 
-    /* Initialise the LCD controller */
-    tft.init();
-    tft.setRotation(1);
-
+    dispInit();
     wifiInit();
     mqttInit();
-
-    /* Clear the screen and display example text */
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(&FreeSansBold24pt7b);
-    tft.drawString("Hello World", 320/2, 240/2, 1);
-//  tft.drawString(WiFi.localIP().toString(), 320/2, 240/2, 1);
-
 }
 
 void loop() {
@@ -84,7 +73,7 @@ void loop() {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
         Serial.printf("%d %d %d\n", p.x, p.y, p.z);
-        tft.fillCircle(map(p.x, 180, 3660, 0, 320), map(p.y, 240, 3840, 0, 240), 3, TFT_RED);
+//        tft.fillCircle(map(p.x, 180, 3660, 0, 320), map(p.y, 240, 3840, 0, 240), 3, TFT_RED);
     }
 }
 
@@ -159,6 +148,7 @@ void mqttHandleMessage(char* topic, uint8_t* payload, unsigned int len) {
     else if (!strcmp(topic, "enviro/reported/humidity")) { updateValue(&data.reported.humidity, value); }
     else if (!strcmp(topic, "enviro/reported/pressure")) { updateValue(&data.reported.pressure, value); }
     else if (!strcmp(topic, "enviro/reported/windSpeed")) { updateValue(&data.reported.windSpeed, value); }
+    data.dirty = true;
 }
 
 void updateValue(dataRecord_t* data, float value) {
@@ -166,4 +156,40 @@ void updateValue(dataRecord_t* data, float value) {
     data->current = value;
     if (value < data->minimum) data->minimum = value;
     if (value > data->maximum) data->maximum = value;
+}
+
+/* ----- Display Task ---- */
+
+void dispInit() {
+
+    TaskHandle_t taskHandle;
+    xTaskCreatePinnedToCore(dispTask, "Display", 8192, nullptr, 2, &taskHandle, 1);
+}
+
+void dispTask(void *param) {
+
+    TFT_eSPI tft = TFT_eSPI();
+
+    /* Initialise the LCD controller */
+    tft.init();
+    tft.setRotation(1);
+
+    /* Clear the screen */
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setFreeFont(&FreeSansBold24pt7b);
+
+    while (true) {
+        if (data.dirty) {
+            tft.drawFloat(data.indoor.temperature.current, 1, 53, 40, 1);
+            tft.drawFloat(data.indoor.humidity.current, 0, 53, 120, 1);
+            tft.drawFloat(data.indoor.pressure.current, 0, 53, 200, 1);
+            tft.drawFloat(data.outdoor.temperature.current, 1, 160, 40, 1);
+            tft.drawFloat(data.outdoor.humidity.current, 0, 160, 120, 1);
+            tft.drawFloat(data.outdoor.pressure.current, 0, 160, 200, 1);
+            data.dirty = false;
+        }
+        vTaskDelay(1000);
+    }
 }
