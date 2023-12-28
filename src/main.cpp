@@ -4,7 +4,10 @@
 #include <Wifi.h>                   // Driver for the ESP32 Wifi controller
 #include <PubSubClient.h>           // MQTT client library
 #include <WiFiClient.h>             // Wifi client library
+
 #include "secrets.h"                // Credentials
+#include "NotoSansBold15.h"
+#include "NotoSansBold36.h"
 
 /* GPIO pins connected to the XPT2046 touch controller */
 #define XPT2046_IRQ     36
@@ -208,14 +211,18 @@ void dispValueWidget(TFT_eSprite *spr, const char *label, dataRecord_t *data, ui
 
     spr->fillSprite(TFT_BLACK);
     spr->setTextDatum(MC_DATUM);
+
+    spr->loadFont(NotoSansBold36);
     spr->setTextColor(TFT_GREEN, TFT_BLACK);
-    spr->setFreeFont(&FreeSans9pt7b);
+    spr->drawFloat(data->current, dp, 50, 40);
+    spr->unloadFont();
+
+    spr->loadFont(NotoSansBold15);
+    spr->setTextColor(0x03E0, TFT_BLACK);
     spr->drawString(label, 50, 10);
-    spr->setFreeFont(&FreeSans24pt7b);
-    spr->drawFloat(data->current, dp, 50, 40, 1);
-    spr->setFreeFont(&FreeSans12pt7b);
     spr->setTextColor(TFT_MAROON, TFT_BLACK);
-    spr->drawFloat(data->maximum, dp, 130, 15, 1);
+    spr->drawFloat(data->maximum, dp, 130, 25);
     spr->setTextColor(TFT_NAVY, TFT_BLACK);
-    spr->drawFloat(data->minimum, dp, 130, 45, 1);
+    spr->drawFloat(data->minimum, dp, 130, 45);
+    spr->unloadFont();
 }
