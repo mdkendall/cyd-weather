@@ -4,6 +4,8 @@
 #include <Wifi.h>                   // Driver for the ESP32 Wifi controller
 #include <PubSubClient.h>           // MQTT client library
 #include <WiFiClient.h>             // Wifi client library
+#include <time.h>                   // Time library
+#include <vector>                   // Vector library
 
 #include "secrets.h"                // Credentials
 
@@ -15,22 +17,38 @@
 #include "NotoSansBold36.h"
 
 /* Record of data to be displayed */
+struct DataValue {
+    time_t timestamp;
+    float value;
+};
+
 class DataRecord {
     public:
-        DataRecord() { }
         void setValue(float value) {
-            current = value;
-            if (value < minimum) minimum = value;
-            if (value > maximum) maximum = value;
+            time_t now = time(nullptr);
+            history.push_back({now, value});
+            time_t cutoff = now - 60*60*24;
+            while (history.size() && history.front().timestamp < cutoff) {
+                history.erase(history.begin());
+            }
         };
-        float current = 0.0;
-        float minimum = 9999.0;
-        float maximum = -9999.0;
+        float getValue() { return history.size() ? history.back().value : 0.0; }
+        float getMinimum() {
+            float min = getValue();
+            for (auto &v : history) if (v.value < min) { min = v.value; }
+            return min;
+        }
+        float getMaximum() {
+            float max = getValue();
+            for (auto &v : history) if (v.value > max) { max = v.value; }
+            return max;
+        }
+    private:
+        std::vector<DataValue> history;
 };
 
 class DataSet {
     public:
-        DataSet() { }
         DataRecord temperature;
         DataRecord humidity;
         DataRecord pressure;
@@ -38,7 +56,6 @@ class DataSet {
 
 class Data {
     public:
-        Data() { }
         DataSet indoor;
         DataSet outdoor;
         bool dirty = false;
@@ -163,7 +180,7 @@ void touchTask(void *param) {
     while (true) {
         if (ts.tirqTouched() && ts.touched()) {
             TS_Point p = ts.getPoint();
-            Serial.printf("%d %d %d\n", p.x, p.y, p.z);
+            // Serial.printf("[Touch] %d %d %d\n", p.x, p.y, p.z);
         }
         vTaskDelay(1);
     }
@@ -219,7 +236,7 @@ void dispValueWidget(TFT_eSprite *spr, const char *label, DataRecord *data, uint
 
     spr->loadFont(NotoSansBold36);
     spr->setTextColor(TFT_GREEN, TFT_BLACK);
-    spr->drawFloat(data->current, dp, 50, 40);
+    spr->drawFloat(data->getValue(), dp, 50, 40);
     spr->unloadFont();
 
     spr->loadFont(NotoSansBold12);
@@ -229,8 +246,8 @@ void dispValueWidget(TFT_eSprite *spr, const char *label, DataRecord *data, uint
 
     spr->loadFont(NotoSansBold24);
     spr->setTextColor(TFT_MAROON, TFT_BLACK);
-    spr->drawFloat(data->maximum, dp, 130, 15);
+    spr->drawFloat(data->getMaximum(), dp, 130, 15);
     spr->setTextColor(TFT_NAVY, TFT_BLACK);
-    spr->drawFloat(data->minimum, dp, 130, 45);
+    spr->drawFloat(data->getMinimum(), dp, 130, 45);
     spr->unloadFont();
 }
